@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#01696f">
+    <title>BoletaScan Peru</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        :root {
+            --bg:       #f7f6f2;
+            --surface:  #ffffff;
+            --surface2: #f3f0ec;
+            --border:   #e6e4df;
+            --text:     #28251d;
+            --muted:    #7a7974;
+            --faint:    #bab9b4;
+            --primary:  #01696f;
+            --primary2: #0c4e54;
+            --phigh:    #e8f4f3;
+            --success:  #437a22;
+            --error:    #a12c7b;
+            --warn:     #da7101;
+            --white:    #ffffff;
+            --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-full: 999px;
+            --sh-sm: 0 1px 3px rgba(0,0,0,.07);
+            --sh-md: 0 4px 12px rgba(0,0,0,.10);
+            --sh-lg: 0 12px 32px rgba(0,0,0,.14);
+            --t: 180ms cubic-bezier(.16,1,.3,1);
+            --font: 'Inter', system-ui, sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            font-family: var(--font);
+            font-size: 16px;
+            color: var(--text);
+            background: var(--bg);
+            height: 100%;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #app {
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            max-width: 480px;
+            margin: 0 auto;
+            background: var(--bg);
+        }
+        /* ── HEADER ── */
+        .hdr {
+            background: var(--surface);
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .hdr-title { font-size: 17px; font-weight: 600; }
+        .hdr-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .icon-btn {
+            width: 40px; height: 40px;
+            border-radius: var(--r-full);
+            border: none;
+            background: var(--surface2);
+            color: var(--text);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .icon-btn:active { opacity: .7; }
+        /* ── CONTENT ── */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .content::-webkit-scrollbar { display: none; }
+        /* ── BOTTOM NAV ── */
+        .bnav {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .bnav-btn {
+            flex: 1;
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            padding: 10px 4px;
+            border: none; background: none;
+            color: var(--muted);
+            font-size: 11px; font-family: var(--font);
+            cursor: pointer;
+            transition: color var(--t);
+        }
+        .bnav-btn.active { color: var(--primary); }
+        .bnav-btn svg { width: 22px; height: 22px; }
+        /* ── SECTIONS ── */
+        .sec { display: none; }
+        .sec.on { display: block; }
+        /* ── KPI GRID ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .kpi {
+            background: var(--surface);
+            border-radius: var(--r-lg);
+            padding: 14px;
+            border: 1px solid var(--border);
+            box-shadow: var(--sh-sm);
+        }
+        .kpi-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+        .kpi-val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+        /* ── CHART BOX ── */
+        .chart-box {
+            background: var(--surface);
+            border-radius: var(--r-lg);
+            padding: 14px;
+            border: 1px solid var(--border);
+            box-shadow: var(--sh-sm);
+            margin-bottom: 16px;
+        }
+        .chart-ttl { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+        .chart-wrap { position: relative; height: 190px; }
+        /* ── SCANNER ── */
+        .scan-box {
+            background: #000;
+            border-radius: var(--r-lg);
+            overflow: hidden;
+            aspect-ratio: 1;
+            position: relative;
+            margin-bottom: 16px;
+        }
+        #qrVideo { width: 100%; height: 100%; object-fit: cover; display: block; }
+        #qrCanvas { display: none; }
+        .scan-overlay {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        .scan-frame {
+            width: 65%; aspect-ratio: 1;
+            border: 2px solid rgba(255,255,255,.6);
+            border-radius: var(--r-lg);
+            position: relative;
+        }
+        .scan-frame::before, .scan-frame::after {
+            content: ''; position: absolute;
+            width: 20px; height: 20px; border-color: #4fd1c5; border-style: solid;
+        }
+        .scan-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+        .scan-frame::after  { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+        .scan-hint {
+            position: absolute; bottom: 18px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,.6);
+            color: #fff; font-size: 12px;
+            padding: 5px 14px; border-radius: var(--r-full);
+            white-space: nowrap;
+        }
+        /* ── QR RESULT PREVIEW ── */
+        .qr-preview {
+            display: none;
+            background: var(--phigh);
+            border: 1px solid var(--primary);
+            border-radius: var(--r-md);
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .qr-preview-lbl { font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 6px; }
+        .qr-preview-data { font-size: 13px; line-height: 1.6; }
+        /* ── BUTTONS ── */
+        .btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 13px 20px;
+            border-radius: var(--r-md);
+            border: none; cursor: pointer;
+            font-size: 15px; font-weight: 500; font-family: var(--font);
+            transition: opacity var(--t), transform var(--t);
+        }
+        .btn:active { opacity: .8; transform: scale(.98); }
+        .btn-primary  { background: var(--primary); color: #fff; }
+        .btn-ghost    { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+        .btn-danger   { background: #fff; color: var(--error); border: 1px solid var(--error); }
+        .btn + .btn   { margin-top: 10px; }
+        /* ── BOLETA CARDS ── */
+        .card-list { display: flex; flex-direction: column; gap: 10px; }
+        .bcard {
+            background: var(--surface);
+            border-radius: var(--r-lg);
+            padding: 14px;
+            border: 1px solid var(--border);
+            box-shadow: var(--sh-sm);
+            display: flex; justify-content: space-between; align-items: flex-start;
+            cursor: pointer;
+            transition: box-shadow var(--t), transform var(--t);
+        }
+        .bcard:active { box-shadow: var(--sh-md); transform: scale(.99); }
+        .bcard-left h3 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+        .bcard-left p  { font-size: 12px; color: var(--muted); }
+        .bcard-right   { text-align: right; }
+        .bcard-amount  { font-size: 18px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+        .bcard-igv     { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .bcard-hint    { font-size: 10px; color: var(--faint); margin-top: 6px; }
+        /* ── EMPTY STATE ── */
+        .empty {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 60px 24px; text-align: center; color: var(--muted);
+        }
+        .empty svg { width: 56px; height: 56px; color: var(--faint); margin-bottom: 16px; }
+        .empty h3  { color: var(--text); font-size: 17px; margin-bottom: 6px; }
+        .empty p   { font-size: 13px; max-width: 260px; }
+        /* ── MODAL ── */
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.45);
+            display: none; align-items: flex-end; justify-content: center;
+            z-index: 100;
+        }
+        .overlay.on { display: flex; }
+        .modal {
+            background: var(--surface);
+            border-radius: var(--r-xl) var(--r-xl) 0 0;
+            width: 100%; max-width: 480px;
+            max-height: 92dvh;
+            overflow-y: auto;
+            padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+        }
+        .modal-hdr {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-hdr h2 { font-size: 20px; font-weight: 600; }
+        .close-btn {
+            width: 34px; height: 34px;
+            border-radius: var(--r-full);
+            border: none; background: var(--surface2);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--text);
+        }
+        /* ── FORM ── */
+        .fg { margin-bottom: 14px; }
+        .fg label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+        .fg input, .fg select {
+            width: 100%; padding: 11px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            font-size: 16px; font-family: var(--font); color: var(--text);
+            background: var(--surface);
+            transition: border-color var(--t), box-shadow var(--t);
+        }
+        .fg input:focus, .fg select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--phigh);
+        }
+        /* ── SETTINGS ── */
+        .set-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
+        }
+        .set-lbl  { font-size: 14px; }
+        .set-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .set-sec-lbl {
+            font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+            color: var(--muted); margin: 20px 0 8px;
+        }
+        .sm-btn {
+            padding: 7px 14px; border-radius: var(--r-md);
+            border: 1px solid var(--border); background: var(--surface2);
+            font-size: 13px; font-family: var(--font); cursor: pointer;
+            white-space: nowrap;
+        }
+        /* ── TOAST ── */
+        .toasts {
+            position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 200; display: flex; flex-direction: column; gap: 8px;
+            width: calc(100% - 32px); max-width: 400px; pointer-events: none;
+        }
+        .toast {
+            background: #1c1b19; color: #cdccca;
+            padding: 11px 14px; border-radius: var(--r-md);
+            font-size: 14px; box-shadow: var(--sh-lg);
+            animation: tIn .25s ease;
+        }
+        .toast.ok  { background: var(--success); color: #fff; }
+        .toast.err { background: var(--error);   color: #fff; }
+        @keyframes tIn { from { opacity:0; transform: translateY(-16px); } to { opacity:1; transform: none; } }
+        /* misc */
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+        .divider { height: 1px; background: var(--border); margin: 16px 0; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="toasts" id="toasts"></div>
+
+    <!-- HEADER -->
+    <header class="hdr">
+        <div>
+            <div class="hdr-title">BoletaScan 🇵🇪</div>
+            <div style="display:flex; align-items:center; gap:6px;">
+            <div class="hdr-sub" id="hdrSub">Dashboard</div>
+            <div id="syncBadge" style="display:none; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:500;"></div>
+        </div>
+        </div>
+        <button class="icon-btn" onclick="openModal('settingsModal')" aria-label="Configuración">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="content">
+
+        <!-- ══ DASHBOARD ══ -->
+        <section id="sec-dashboard" class="sec on">
+            <div class="kpi-grid">
+                <div class="kpi">
+                    <div class="kpi-lbl">Total Gastado</div>
+                    <div class="kpi-val" id="kTotal">S/ 0.00</div>
+                    <div class="kpi-sub" id="kTotalSub">Este mes</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-lbl">Boletas</div>
+                    <div class="kpi-val" id="kCount">0</div>
+                    <div class="kpi-sub">Este mes</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-lbl">IGV Acumulado</div>
+                    <div class="kpi-val" id="kIGV">S/ 0.00</div>
+                    <div class="kpi-sub">18%</div>
+                </div>
+                <div class="kpi">
+                    <div class="kpi-lbl">Promedio</div>
+                    <div class="kpi-val" id="kAvg">S/ 0.00</div>
+                    <div class="kpi-sub">Por boleta</div>
+                </div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-ttl">Gastos por Semana</div>
+                <div class="chart-wrap"><canvas id="cWeekly"></canvas></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-ttl">Por Categoría</div>
+                <div class="chart-wrap"><canvas id="cCat"></canvas></div>
+            </div>
+        </section>
+
+        <!-- ══ SCANNER ══ -->
+        <section id="sec-scanner" class="sec">
+            <div class="scan-box">
+                <video id="qrVideo" autoplay playsinline muted></video>
+                <canvas id="qrCanvas"></canvas>
+                <div class="scan-overlay">
+                    <div class="scan-frame"></div>
+                    <div class="scan-hint">Apunta al QR de la boleta</div>
+                </div>
+            </div>
+
+            <!-- RESULTADO QR — se muestra tras detectar -->
+            <div class="qr-preview" id="qrPreview">
+                <div class="qr-preview-lbl">✓ QR detectado — revisa los datos</div>
+                <div class="qr-preview-data" id="qrData"></div>
+            </div>
+
+            <!-- BOTÓN: revisar y editar (aparece tras scan) -->
+            <button class="btn btn-primary" id="btnRevisar" style="display:none;" onclick="abrirFormDesdeQR()">
+                ✏️&nbsp; Revisar y Editar antes de Guardar
+            </button>
+
+            <div class="divider"></div>
+            <p style="font-size:12px; color:var(--muted); text-align:center; margin-bottom:10px;">O ingresa los datos manualmente</p>
+            <button class="btn btn-ghost" onclick="abrirFormNuevo()">
+                + Registro Manual
+            </button>
+        </section>
+
+        <!-- ══ LISTA BOLETAS ══ -->
+        <section id="sec-lista" class="sec">
+            <div id="listaWrap"></div>
+        </section>
+
+    </main>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bnav">
+        <button class="bnav-btn active" data-sec="dashboard" onclick="navTo('dashboard')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Dashboard
+        </button>
+        <button class="bnav-btn" data-sec="scanner" onclick="navTo('scanner')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+            Escanear
+        </button>
+        <button class="bnav-btn" data-sec="lista" onclick="navTo('lista')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Boletas
+        </button>
+    </nav>
+
+    <!-- ══ MODAL: FORMULARIO (nuevo / editar / desde QR) ══ -->
+    <div class="overlay" id="formModal" onclick="overlayClick(event,'formModal')">
+        <div class="modal">
+            <div class="modal-hdr">
+                <h2 id="formTitulo">Nueva Boleta</h2>
+                <button class="close-btn" onclick="closeModal('formModal')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <form id="formBoleta" onsubmit="guardarBoleta(event)">
+                <!-- ID oculto para modo edición -->
+                <input type="hidden" id="fId">
+
+                <div class="fg">
+                    <label>Fecha</label>
+                    <input type="date" id="fFecha" required>
+                </div>
+                <div class="fg">
+                    <label>RUC del Emisor</label>
+                    <input type="text" id="fRUC" placeholder="20123456789" maxlength="11">
+                </div>
+                <div class="fg">
+                    <label>Número de Boleta</label>
+                    <input type="text" id="fNumero" placeholder="B001-00012345" required>
+                </div>
+                <div class="fg">
+                    <label>Monto (sin IGV)</label>
+                    <input type="number" id="fMonto" placeholder="0.00" step="0.01" min="0" oninput="calcTotal()">
+                </div>
+                <div class="fg">
+                    <label>IGV</label>
+                    <input type="number" id="fIGV" placeholder="0.00" step="0.01" min="0" oninput="calcTotal()">
+                </div>
+                <div class="fg">
+                    <label>Total</label>
+                    <input type="number" id="fTotal" placeholder="0.00" step="0.01" min="0" required>
+                </div>
+                <div class="fg">
+                    <label>Categoría</label>
+                    <select id="fCat">
+                        <option>Alimentación</option>
+                        <option>Restaurantes</option>
+                        <option>Transporte</option>
+                        <option>Salud</option>
+                        <option>Educación</option>
+                        <option>Vivienda</option>
+                        <option>Entretenimiento</option>
+                        <option>Servicios</option>
+                        <option>Otros</option>
+                    </select>
+                </div>
+                <div class="fg">
+                    <label>Descripción (opcional)</label>
+                    <input type="text" id="fDesc" placeholder="Ej: Compra en supermercado">
+                </div>
+
+                <!-- Botón ELIMINAR: solo visible en modo edición -->
+                <button type="button" id="btnEliminar"
+                    style="display:none;"
+                    class="btn btn-danger"
+                    onclick="eliminarBoleta()">
+                    🗑️&nbsp; Eliminar esta Boleta
+                </button>
+
+                <!-- Botón GUARDAR / ACTUALIZAR -->
+                <button type="submit" id="btnGuardar" class="btn btn-primary">
+                    Guardar Boleta
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ══ MODAL: CONFIGURACIÓN ══ -->
+    <div class="overlay" id="settingsModal" onclick="overlayClick(event,'settingsModal')">
+        <div class="modal">
+            <div class="modal-hdr">
+                <h2>Configuración</h2>
+                <button class="close-btn" onclick="closeModal('settingsModal')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="set-sec-lbl">Google Sheets</div>
+            <div class="fg">
+                <label>URL del Web App (Apps Script)</label>
+                <input type="url" id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+            <p style="font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:14px;">
+                Pega aquí la URL del Web App de Google Apps Script desplegado.
+            </p>
+            <button class="btn btn-primary" onclick="guardarConfig()">Guardar y Sincronizar</button>
+
+            <div class="set-sec-lbl">Datos</div>
+            <div class="set-row">
+                <div>
+                    <div class="set-lbl">Exportar boletas</div>
+                    <div class="set-desc">Descarga archivo JSON</div>
+                </div>
+                <button class="sm-btn" onclick="exportar()">Exportar</button>
+            </div>
+            <div class="set-row">
+                <div>
+                    <div class="set-lbl">Borrar todo</div>
+                    <div class="set-desc">Elimina todos los registros locales</div>
+                </div>
+                <button class="sm-btn" style="color:var(--error);" onclick="borrarTodo()">Borrar</button>
+            </div>
+            <div class="set-row">
+                <div>
+                    <div class="set-lbl">Boletas guardadas</div>
+                    <div class="set-desc" id="cfgCount">0 registros</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  ESTADO GLOBAL
+// ═══════════════════════════════════════════
+let boletas   = [];
+let gsheetUrl = '';
+let camStream = null;
+let scanLoop  = null;
+let scanData  = null;   // datos del último QR leído
+let chartW    = null;
+let chartC    = null;
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+    cargarLocal();
+    document.getElementById('fFecha').valueAsDate = new Date();
+    updateDashboard();
+    renderLista();
+
+    // Auto-sync con Sheets al abrir si hay URL guardada
+    if (gsheetUrl) {
+        setSyncStatus('syncing');
+        try {
+            await cargarDesdeSheets(gsheetUrl);
+            setSyncStatus('ok');
+        } catch(e) {
+            setSyncStatus('error');
+        }
+    }
+});
+
+// ═══════════════════════════════════════════
+//  NAVEGACIÓN
+// ═══════════════════════════════════════════
+const SUBTITLES = { dashboard: 'Dashboard', scanner: 'Escanear QR', lista: 'Mis Boletas' };
+
+function navTo(sec) {
+    document.querySelectorAll('.sec').forEach(s => s.classList.remove('on'));
+    document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('sec-' + sec).classList.add('on');
+    document.querySelector(`[data-sec="${sec}"]`).classList.add('active');
+    document.getElementById('hdrSub').textContent = SUBTITLES[sec];
+    if (sec === 'scanner') iniciarCam();
+    else                   detenerCam();
+    if (sec === 'dashboard') updateDashboard();
+    if (sec === 'lista')     renderLista();
+}
+
+// ═══════════════════════════════════════════
+//  CÁMARA / QR
+// ═══════════════════════════════════════════
+async function iniciarCam() {
+    const video  = document.getElementById('qrVideo');
+    const canvas = document.getElementById('qrCanvas');
+    // reset preview
+    ocultarPreviewQR();
+    try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = camStream;
+        await video.play();
+        escanearFrame(video, canvas);
+    } catch (e) {
+        toast('No se pudo acceder a la cámara. Usa registro manual.', 'err');
+    }
+}
+
+function detenerCam() {
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+    if (scanLoop)  { cancelAnimationFrame(scanLoop); scanLoop = null; }
+}
+
+function escanearFrame(video, canvas) {
+    if (!camStream) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const ctx = canvas.getContext('2d');
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+        if (code) { procesarQR(code.data); return; }
+    }
+    scanLoop = requestAnimationFrame(() => escanearFrame(video, canvas));
+}
+
+function procesarQR(raw) {
+    scanData = parsearQR(raw);
+    // Mostrar preview
+    const lines = [];
+    if (scanData.ruc)    lines.push('<b>RUC:</b> ' + scanData.ruc);
+    if (scanData.numero) lines.push('<b>Boleta:</b> ' + scanData.numero);
+    if (scanData.fecha)  lines.push('<b>Fecha:</b> ' + scanData.fecha);
+    lines.push('<b>IGV:</b> S/ ' + (scanData.igv||0).toFixed(2));
+    lines.push('<b>Total:</b> S/ ' + (scanData.total||0).toFixed(2));
+    document.getElementById('qrData').innerHTML = lines.join('<br>');
+    document.getElementById('qrPreview').style.display = 'block';
+    document.getElementById('btnRevisar').style.display = 'flex';
+    toast('QR detectado ✓ — revisa los datos', 'ok');
+}
+
+function ocultarPreviewQR() {
+    scanData = null;
+    document.getElementById('qrPreview').style.display = 'none';
+    document.getElementById('btnRevisar').style.display = 'none';
+}
+
+function parsearQR(raw) {
+    // Formato SUNAT: RUC|tipo|serie-numero|igv|total|fecha|...
+    const p = raw.split('|');
+    if (p.length >= 5) {
+        return {
+            ruc:    p[0].trim(),
+            tipo:   p[1].trim(),
+            numero: p[2].trim(),
+            igv:    parseFloat(p[3]) || 0,
+            total:  parseFloat(p[4]) || 0,
+            fecha:  p[5] ? p[5].trim() : hoy(),
+            raw
+        };
+    }
+    // Intento URL params
+    try {
+        if (raw.includes('?')) {
+            const u = new URL(raw);
+            return { ruc: u.searchParams.get('ruc')||'', numero: u.searchParams.get('numero')||'',
+                total: parseFloat(u.searchParams.get('total'))||0, fecha: u.searchParams.get('fecha')||hoy(), raw };
+        }
+    } catch(_) {}
+    // Intento JSON
+    try {
+        const j = JSON.parse(raw);
+        return { ruc: j.ruc||'', numero: j.numero||j.serieNumero||'',
+            total: parseFloat(j.total||j.importeTotal)||0, igv: parseFloat(j.igv||j.sumatoriaIGV)||0,
+            fecha: j.fecha||hoy(), raw };
+    } catch(_) {}
+    // Fallback: datos vacíos con raw visible en descripción
+    return { ruc:'', numero:'', total:0, igv:0, fecha: hoy(), raw };
+}
+
+// ═══════════════════════════════════════════
+//  FORMULARIO — MODOS: nuevo / qr / editar
+// ═══════════════════════════════════════════
+function abrirFormNuevo() {
+    resetForm();
+    document.getElementById('formTitulo').textContent  = 'Nueva Boleta';
+    document.getElementById('btnEliminar').style.display = 'none';
+    document.getElementById('btnGuardar').textContent  = 'Guardar Boleta';
+    document.getElementById('fFecha').valueAsDate = new Date();
+    openModal('formModal');
+    detenerCam();
+}
+
+function abrirFormDesdeQR() {
+    if (!scanData) return;
+    resetForm();
+    document.getElementById('formTitulo').textContent  = 'Revisar y Guardar Boleta';
+    document.getElementById('btnEliminar').style.display = 'none';
+    document.getElementById('btnGuardar').textContent  = 'Guardar Boleta';
+    // Pre-rellenar con datos del QR
+    document.getElementById('fFecha').value  = scanData.fecha  || hoy();
+    document.getElementById('fRUC').value    = scanData.ruc    || '';
+    document.getElementById('fNumero').value = scanData.numero || '';
+    const monto = (scanData.total||0) - (scanData.igv||0);
+    document.getElementById('fMonto').value  = monto > 0 ? monto.toFixed(2) : '';
+    document.getElementById('fIGV').value    = scanData.igv   ? scanData.igv.toFixed(2)   : '';
+    document.getElementById('fTotal').value  = scanData.total ? scanData.total.toFixed(2) : '';
+    document.getElementById('fDesc').value   = '';
+    openModal('formModal');
+}
+
+function abrirFormEditar(id) {
+    const b = boletas.find(x => x.id === id);
+    if (!b) return;
+    resetForm();
+    document.getElementById('formTitulo').textContent  = 'Editar Boleta';
+    document.getElementById('btnEliminar').style.display = 'flex';   // ← VISIBLE
+    document.getElementById('btnGuardar').textContent  = 'Actualizar Boleta';
+    document.getElementById('fId').value     = id;
+    document.getElementById('fFecha').value  = b.fecha      || hoy();
+    document.getElementById('fRUC').value    = b.ruc        || '';
+    document.getElementById('fNumero').value = b.numero     || '';
+    document.getElementById('fMonto').value  = b.monto  != null ? b.monto.toFixed(2)  : '';
+    document.getElementById('fIGV').value    = b.igv    != null ? b.igv.toFixed(2)    : '';
+    document.getElementById('fTotal').value  = b.total  != null ? b.total.toFixed(2)  : '';
+    document.getElementById('fCat').value    = b.categoria  || 'Otros';
+    document.getElementById('fDesc').value   = b.descripcion || '';
+    openModal('formModal');
+}
+
+function resetForm() {
+    document.getElementById('formBoleta').reset();
+    document.getElementById('fId').value = '';
+}
+
+function guardarBoleta(e) {
+    e.preventDefault();
+    const id = document.getElementById('fId').value;
+    const data = {
+        fecha:       document.getElementById('fFecha').value,
+        ruc:         document.getElementById('fRUC').value.trim(),
+        numero:      document.getElementById('fNumero').value.trim(),
+        monto:       parseFloat(document.getElementById('fMonto').value) || 0,
+        igv:         parseFloat(document.getElementById('fIGV').value) || 0,
+        total:       parseFloat(document.getElementById('fTotal').value) || 0,
+        categoria:   document.getElementById('fCat').value,
+        descripcion: document.getElementById('fDesc').value.trim(),
+    };
+    if (id) {
+        // ACTUALIZAR boleta existente
+        const idx = boletas.findIndex(b => b.id === parseInt(id));
+        if (idx !== -1) {
+            boletas[idx] = { ...boletas[idx], ...data };
+            guardarLocal();
+            updateSheets(boletas[idx]);   // ← sync actualización a Sheets
+            closeModal('formModal');
+            renderLista();
+            updateDashboard();
+            toast('Boleta actualizada ✓', 'ok');
+        }
+    } else {
+        // NUEVA boleta
+        const boleta = { id: Date.now(), ...data, creadoEn: new Date().toISOString() };
+        boletas.unshift(boleta);
+        guardarLocal();
+        syncSheets(boleta);              // ← sync inserción a Sheets
+        closeModal('formModal');
+        ocultarPreviewQR();
+        toast('Boleta guardada ✓', 'ok');
+        navTo('lista');
+    }
+}
+
+function eliminarBoleta() {
+    const id = document.getElementById('fId').value;
+    if (!id) return;
+    if (!confirm('¿Eliminar esta boleta? No se puede deshacer.')) return;
+    const bToDelete = boletas.find(b => b.id === parseInt(id));
+    boletas = boletas.filter(b => b.id !== parseInt(id));
+    guardarLocal();
+    if (bToDelete) deleteSheets(bToDelete.id, bToDelete.numero);  // ← sync eliminación
+    closeModal('formModal');
+    renderLista();
+    updateDashboard();
+    toast('Boleta eliminada', 'ok');
+}
+
+function calcTotal() {
+    const m = parseFloat(document.getElementById('fMonto').value) || 0;
+    const i = parseFloat(document.getElementById('fIGV').value) || 0;
+    if (m > 0 || i > 0) document.getElementById('fTotal').value = (m + i).toFixed(2);
+}
+
+// ═══════════════════════════════════════════
+//  LISTA DE BOLETAS
+// ═══════════════════════════════════════════
+function renderLista() {
+    const wrap = document.getElementById('listaWrap');
+    if (!boletas.length) {
+        wrap.innerHTML = `<div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="1"/>
+                <path d="M9 14l2 2 4-4"/>
+            </svg>
+            <h3>Sin boletas registradas</h3>
+            <p>Escanea un QR o usa el registro manual para empezar.</p>
+        </div>`;
+        return;
+    }
+    const sorted = [...boletas].sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+    wrap.innerHTML = '<div class="card-list">' + sorted.map(b => `
+        <div class="bcard" onclick="abrirFormEditar(${b.id})">
+            <div class="bcard-left">
+                <h3>${b.numero || 'Sin número'}</h3>
+                <p>${fmtFecha(b.fecha)} · ${b.categoria || 'Otros'}</p>
+                ${b.descripcion ? `<p>${b.descripcion}</p>` : ''}
+            </div>
+            <div class="bcard-right">
+                <div class="bcard-amount">S/ ${(b.total||0).toFixed(2)}</div>
+                <div class="bcard-igv">IGV: S/ ${(b.igv||0).toFixed(2)}</div>
+                <div class="bcard-hint">Toca para editar ✏️</div>
+            </div>
+        </div>`).join('') + '</div>';
+}
+
+// ═══════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════
+function updateDashboard() {
+    const now = new Date();
+    const mes = boletas.filter(b => {
+        const d = new Date(b.fecha);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const total = mes.reduce((s,b) => s + (b.total||0), 0);
+    const igv   = mes.reduce((s,b) => s + (b.igv||0), 0);
+    const avg   = mes.length ? total / mes.length : 0;
+    document.getElementById('kTotal').textContent = 'S/ ' + total.toFixed(2);
+    document.getElementById('kCount').textContent = mes.length;
+    document.getElementById('kIGV').textContent   = 'S/ ' + igv.toFixed(2);
+    document.getElementById('kAvg').textContent   = 'S/ ' + avg.toFixed(2);
+    buildWeeklyChart(mes);
+    buildCatChart(mes);
+}
+
+function buildWeeklyChart(data) {
+    const ctx = document.getElementById('cWeekly').getContext('2d');
+    const weeks = ['Sem 1','Sem 2','Sem 3','Sem 4','Sem 5'];
+    const vals  = [0,0,0,0,0];
+    data.forEach(b => { const w = Math.min(Math.floor(new Date(b.fecha).getDate()/7), 4); vals[w] += b.total||0; });
+    if (chartW) chartW.destroy();
+    chartW = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: weeks, datasets: [{ label: 'S/', data: vals, backgroundColor: '#01696f', borderRadius: 6, barThickness: 28 }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+            scales: { y:{ beginAtZero:true, grid:{color:'#e6e4df'}, ticks:{font:{size:11}, callback: v=>'S/'+v} }, x:{grid:{display:false}, ticks:{font:{size:11}}} } }
+    });
+}
+
+function buildCatChart(data) {
+    const ctx = document.getElementById('cCat').getContext('2d');
+    const cats = {};
+    data.forEach(b => { const c = b.categoria||'Otros'; cats[c] = (cats[c]||0) + (b.total||0); });
+    const labels = Object.keys(cats), vals = Object.values(cats);
+    const colors = ['#01696f','#437a22','#da7101','#a12c7b','#006494','#7a39bb','#d19900','#964219'];
+    if (chartC) chartC.destroy();
+    if (!labels.length) return;
+    chartC = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive:true, maintainAspectRatio:false, cutout:'60%',
+            plugins:{ legend:{ position:'bottom', labels:{boxWidth:12, padding:14, font:{size:11}} } } }
+    });
+}
+
+// ═══════════════════════════════════════════
+//  GOOGLE SHEETS
+// ═══════════════════════════════════════════
+
+// Llamada genérica al Apps Script usando JSONP para evitar CORS en modo no-cors
+async function callSheets(payload) {
+    if (!gsheetUrl) return;
+    // Enviamos como GET con parámetro — Apps Script lo recibe en doGet(e)
+    // Este método evita completamente el problema CORS
+    try {
+        const url = gsheetUrl + '?data=' + encodeURIComponent(JSON.stringify(payload));
+        await fetch(url, { method: 'GET', mode: 'no-cors' });
+    } catch(e) { console.warn('Sheets call error', e); }
+}
+
+async function syncSheets(boleta) {
+    if (!gsheetUrl) return;
+    await callSheets({ action: 'insert', boleta });
+}
+
+async function updateSheets(boleta) {
+    if (!gsheetUrl) return;
+    await callSheets({ action: 'update', boleta });
+}
+
+async function deleteSheets(id, numero) {
+    if (!gsheetUrl) return;
+    await callSheets({ action: 'delete', id, numero });
+}
+
+async function cargarDesdeSheets(url) {
+    try {
+        const r = await fetch(url + '?action=getLast30', { cache: 'no-store' });
+        const d = await r.json();
+        if (d.success && Array.isArray(d.rows) && d.rows.length) {
+            boletas = d.rows.map((row, i) => ({
+                id:          parseInt(row[9]) || (Date.now() + i),
+                fecha:       row[0] || '',
+                ruc:         row[1] || '',
+                numero:      row[2] || '',
+                monto:       parseFloat(row[3]) || 0,
+                igv:         parseFloat(row[4]) || 0,
+                total:       parseFloat(row[5]) || 0,
+                categoria:   row[6] || 'Otros',
+                descripcion: row[7] || '',
+                creadoEn:    row[8] || ''
+            })).filter(b => b.fecha && b.numero);
+            guardarLocal();
+            updateDashboard();
+            renderLista();
+            // toast manejado por setSyncStatus en el caller
+        } else if (d.success && (!d.rows || d.rows.length === 0)) {
+            // sin boletas aún
+        }
+    } catch(e) {
+        toast('Error al conectar con Sheets: ' + e.message, 'err');
+        console.error('Sheets load error', e);
+    }
+}
+
+function guardarConfig() {
+    gsheetUrl = document.getElementById('cfgUrl').value.trim();
+    try { localStorage.setItem('bs_url', gsheetUrl); } catch(_){}
+    document.getElementById('cfgCount').textContent = boletas.length + ' registros';
+    closeModal('settingsModal');
+    toast('Configuración guardada ✓', 'ok');
+    if (gsheetUrl) cargarDesdeSheets(gsheetUrl);
+}
+
+// ═══════════════════════════════════════════
+//  PERSISTENCIA LOCAL (localStorage)
+// ═══════════════════════════════════════════
+function guardarLocal() {
+    try { localStorage.setItem('bs_boletas', JSON.stringify(boletas)); } catch(_){}
+}
+function cargarLocal() {
+    try {
+        const s = localStorage.getItem('bs_boletas');
+        if (s) boletas = JSON.parse(s);
+        const u = localStorage.getItem('bs_url');
+        if (u) {
+            gsheetUrl = u;
+            document.getElementById('cfgUrl').value = u;
+        }
+    } catch(_) {}
+}
+
+function exportar() {
+    const blob = new Blob([JSON.stringify(boletas,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'boletas_' + hoy() + '.json';
+    a.click();
+}
+
+function borrarTodo() {
+    if (!confirm('¿Borrar todas las boletas guardadas?')) return;
+    boletas = [];
+    guardarLocal();
+    renderLista();
+    updateDashboard();
+    toast('Datos eliminados', 'ok');
+}
+
+// ═══════════════════════════════════════════
+//  MODALES
+// ═══════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('on'); }
+function closeModal(id) {
+    document.getElementById(id).classList.remove('on');
+    if (id === 'settingsModal') document.getElementById('cfgCount').textContent = boletas.length + ' registros';
+}
+function overlayClick(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+function toast(msg, type='') {
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.textContent = msg;
+    document.getElementById('toasts').appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 3000);
+}
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+function hoy() { return new Date().toISOString().split('T')[0]; }
+function fmtFecha(s) {
+    try { return new Date(s).toLocaleDateString('es-PE', {day:'numeric', month:'short', year:'numeric'}); }
+    catch(_) { return s; }
+}
+
+// ── Indicador de sincronización ──
+function setSyncStatus(state) {
+    const badge = document.getElementById('syncBadge');
+    if (!badge) return;
+    const states = {
+        syncing: { text: '⟳ Sincronizando...', bg: '#e8f4f3', color: '#01696f', show: true },
+        ok:      { text: '✓ Sincronizado',      bg: '#d4dfcc', color: '#437a22', show: true },
+        error:   { text: '✗ Sin conexión',       bg: '#e0ced7', color: '#a12c7b', show: true },
+    };
+    const s = states[state];
+    if (!s) { badge.style.display = 'none'; return; }
+    badge.textContent    = s.text;
+    badge.style.background = s.bg;
+    badge.style.color    = s.color;
+    badge.style.display  = s.show ? 'inline-block' : 'none';
+    // Ocultar badge "ok" después de 4 segundos
+    if (state === 'ok') setTimeout(() => { badge.style.display = 'none'; }, 4000);
+}
+
+// Evitar zoom doble-tap
+let lastTap = 0;
+document.addEventListener('touchend', e => { const n=Date.now(); if(n-lastTap<300) e.preventDefault(); lastTap=n; }, {passive:false});
+</script>
+</body>
+</html>
