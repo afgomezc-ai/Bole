@@ -633,38 +633,75 @@ function ocultarPreviewQR() {
 }
 
 function parsearQR(raw) {
-    // Formato SUNAT: RUC|tipo|serie-numero|igv|total|fecha|...
     const p = raw.split('|');
-    if (p.length >= 5) {
+    
+    // Función auxiliar para asegurar que la fecha tenga el formato correcto (YYYY-MM-DD)
+    const formatFecha = (str) => {
+        if (!str) return hoy();
+        let f = str.trim().split(' ')[0]; // Quitar horas si las trae
+        if (f.includes('/')) {
+            const d = f.split('/');
+            if (d.length === 3 && d[2].length === 4) return `${d[2]}-${d[1]}-${d[0]}`;
+        }
+        return f.substring(0, 10);
+    };
+
+    // Formato oficial SUNAT: RUC | Tipo | Serie | Correlativo | IGV | Total | Fecha | ...
+    if (p.length >= 7) {
+        return {
+            ruc:    p[0].trim(),
+            tipo:   p[1].trim(),
+            numero: p[2].trim() + '-' + p[3].trim(), // Une Serie y Correlativo
+            igv:    parseFloat(p[4]) || 0,
+            total:  parseFloat(p[5]) || 0,
+            fecha:  formatFecha(p[6]),
+            raw
+        };
+    }
+    // Formato alternativo (Serie y Número vienen juntos)
+    else if (p.length >= 6) {
         return {
             ruc:    p[0].trim(),
             tipo:   p[1].trim(),
             numero: p[2].trim(),
             igv:    parseFloat(p[3]) || 0,
             total:  parseFloat(p[4]) || 0,
-            fecha:  p[5] ? p[5].trim() : hoy(),
+            fecha:  formatFecha(p[5]),
             raw
         };
     }
+
     // Intento URL params
     try {
         if (raw.includes('?')) {
             const u = new URL(raw);
-            return { ruc: u.searchParams.get('ruc')||'', numero: u.searchParams.get('numero')||'',
-                total: parseFloat(u.searchParams.get('total'))||0, fecha: u.searchParams.get('fecha')||hoy(), raw };
+            return { 
+                ruc: u.searchParams.get('ruc')||'', 
+                numero: u.searchParams.get('numero')||'',
+                total: parseFloat(u.searchParams.get('total'))||0, 
+                fecha: formatFecha(u.searchParams.get('fecha')), 
+                raw 
+            };
         }
     } catch(_) {}
+
     // Intento JSON
     try {
         const j = JSON.parse(raw);
-        return { ruc: j.ruc||'', numero: j.numero||j.serieNumero||'',
-            total: parseFloat(j.total||j.importeTotal)||0, igv: parseFloat(j.igv||j.sumatoriaIGV)||0,
-            fecha: j.fecha||hoy(), raw };
+        return { 
+            ruc: j.ruc||'', 
+            numero: j.numero||j.serieNumero||'',
+            total: parseFloat(j.total||j.importeTotal)||0, 
+            igv: parseFloat(j.igv||j.sumatoriaIGV)||0,
+            fecha: formatFecha(j.fecha), 
+            raw 
+        };
     } catch(_) {}
-    // Fallback: datos vacíos con raw visible en descripción
+
+    // Fallback en caso de formato no reconocido
     return { ruc:'', numero:'', total:0, igv:0, fecha: hoy(), raw };
 }
-
+    
 // ═══════════════════════════════════════════
 //  FORMULARIO — MODOS: nuevo / qr / editar
 // ═══════════════════════════════════════════
